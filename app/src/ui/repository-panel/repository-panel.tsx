@@ -2,7 +2,7 @@ import * as React from 'react'
 import classNames from 'classnames'
 import memoizeOne from 'memoize-one'
 import { IConstrainedValue } from '../../lib/app-state'
-import { IMatches } from '../../lib/fuzzy-find'
+import { IMatches, match } from '../../lib/fuzzy-find'
 import { getStringArray, setStringArray } from '../../lib/local-storage'
 import { Account } from '../../models/account'
 import { IRepositoryGroup } from '../../models/repository-group'
@@ -20,6 +20,7 @@ import {
 } from '../repositories-list/group-repositories'
 import { RepositoryListItem } from '../repositories-list/repository-list-item'
 import { Resizable } from '../resizable'
+import { TextBox } from '../lib/text-box'
 
 const CollapsedGroupsKey = 'repository-panel-collapsed-groups'
 const NoMatches: IMatches = { title: [], subtitle: [] }
@@ -29,6 +30,7 @@ const NoMatches: IMatches = { title: [], subtitle: [] }
  * which shouldn't lose the user's place in the list.
  */
 let lastScrollTop = 0
+let lastFilterText = ''
 let shouldFocusSelection = false
 
 interface IRepositoryPanelProps {
@@ -45,10 +47,15 @@ interface IRepositoryPanelProps {
   readonly isCollapsed: boolean
   readonly dispatcher: Dispatcher
   readonly onSelectionChanged: (repository: Repositoryish) => void
+  readonly onContextMenu: (
+    repository: Repositoryish,
+    event: React.MouseEvent<HTMLElement>
+  ) => void
 }
 
 interface IRepositoryPanelState {
   readonly collapsedGroups: ReadonlySet<string>
+  readonly filterText: string
 }
 
 /** A collapsible sidebar listing all repositories by their group. */
@@ -65,6 +72,7 @@ export class RepositoryPanel extends React.Component<
     super(props)
     this.state = {
       collapsedGroups: new Set(getStringArray(CollapsedGroupsKey)),
+      filterText: lastFilterText,
     }
   }
 
@@ -81,6 +89,11 @@ export class RepositoryPanel extends React.Component<
 
   private onScroll = (event: React.UIEvent<HTMLDivElement>) => {
     lastScrollTop = event.currentTarget.scrollTop
+  }
+
+  private onFilterTextChanged = (filterText: string) => {
+    lastFilterText = filterText
+    this.setState({ filterText })
   }
 
   private onToggleGroup = (key: string) => {
@@ -116,7 +129,7 @@ export class RepositoryPanel extends React.Component<
     this.props.dispatcher.resetRepositoryPanelWidth()
   }
 
-  private renderRepository(item: IRepositoryListItem) {
+  private renderRepository(item: IRepositoryListItem, matches: IMatches) {
     const { repository } = item
     const isSelected = repository.id === this.props.selectedRepository.id
 
@@ -129,11 +142,13 @@ export class RepositoryPanel extends React.Component<
         ref={isSelected ? this.selectedRowRef : undefined}
         // eslint-disable-next-line react/jsx-no-bind
         onClick={() => this.onSelectRepository(repository)}
+        // eslint-disable-next-line react/jsx-no-bind
+        onContextMenu={event => this.props.onContextMenu(repository, event)}
       >
         <RepositoryListItem
           repository={repository}
           needsDisambiguation={item.needsDisambiguation}
-          matches={NoMatches}
+          matches={matches}
           aheadBehind={item.aheadBehind}
           changedFilesCount={item.changedFilesCount}
           accountLabel={item.accountLabel}
@@ -152,9 +167,21 @@ export class RepositoryPanel extends React.Component<
       this.props.accounts
     )
 
-    return groups.map(({ identifier, items }) => {
+    const filter = this.state.filterText.trim().toLowerCase()
+    const rendered = groups.map(({ identifier, items }) => {
       const key = getGroupKey(identifier)
-      const isExpanded = !this.state.collapsedGroups.has(key)
+      const matched =
+        filter.length > 0
+          ? match(filter, items, item => item.text)
+          : items.map(item => ({ item, matches: NoMatches }))
+
+      if (matched.length === 0) {
+        return null
+      }
+
+      // While filtering, all matches show, also those in collapsed groups.
+      const isExpanded =
+        filter.length > 0 || !this.state.collapsedGroups.has(key)
 
       return (
         <section key={key} className="repository-panel-group">
@@ -170,12 +197,21 @@ export class RepositoryPanel extends React.Component<
             />
             <Octicon symbol={octicons.fileDirectory} />
             <span className="name">{getGroupLabel(identifier)}</span>
-            <span className="count">{items.length}</span>
+            <span className="count">{matched.length}</span>
           </button>
-          {isExpanded && items.map(item => this.renderRepository(item))}
+          {isExpanded &&
+            matched.map(({ item, matches }) =>
+              this.renderRepository(item, matches)
+            )}
         </section>
       )
     })
+
+    if (rendered.every(group => group === null)) {
+      return <div className="repository-panel-empty">No repositories found</div>
+    }
+
+    return rendered
   }
 
   public render() {
@@ -220,6 +256,17 @@ export class RepositoryPanel extends React.Component<
               <Octicon symbol={octicons.sidebarExpand} />
             </Button>
           </header>
+          <div className="repository-panel-filter">
+            <TextBox
+              type="search"
+              placeholder="Filter"
+              ariaLabel="Filter repositories"
+              value={this.state.filterText}
+              onValueChanged={this.onFilterTextChanged}
+              displayClearButton={true}
+              prefixedIcon={octicons.search}
+            />
+          </div>
           <div
             className="repository-list repository-panel-list"
             ref={this.listRef}

@@ -48,6 +48,7 @@ import { TitleBar, ZoomInfo, FullScreenInfo } from './window'
 import { RepositoriesList } from './repositories-list'
 import { RepositoryView } from './repository'
 import { RepositoryPanel } from './repository-panel/repository-panel'
+import { getRepositoryMenuActions } from './repository-panel/repository-menu-actions'
 import { RenameBranch } from './rename-branch'
 import { DeleteBranch, DeleteRemoteBranch } from './delete-branch'
 import { CloningRepositoryView } from './cloning-repository'
@@ -3645,6 +3646,33 @@ export class App extends React.Component<IAppProps, IAppState> {
     showContextualMenu(items)
   }
 
+  private onRepositoryPanelContextMenu = (
+    repository: Repository | CloningRepository,
+    event: React.MouseEvent<HTMLElement>
+  ) => {
+    event.preventDefault()
+
+    const items = generateRepositoryListContextMenu({
+      ...getRepositoryMenuActions(this.props.dispatcher),
+      repository,
+      repositoryGroups: this.state.repositoryGroups,
+      repositorySSHAlias: this.state.repositorySSHAliases.get(repository.id),
+      onRemoveRepository: this.removeRepository,
+      onShowRepository: this.showRepository,
+      onOpenInShell: this.openInShell,
+      onOpenInExternalEditor: this.openInExternalEditor,
+      onViewOnGitHub: this.viewOnGitHub,
+      askForConfirmationOnRemoveRepository:
+        this.state.askForConfirmationOnRepositoryRemoval,
+      externalEditorLabel: this.externalEditorLabel,
+      shellLabel: this.state.useCustomShell
+        ? undefined
+        : this.state.selectedShell,
+    })
+
+    showContextualMenu(items)
+  }
+
   private renderPushPullToolbarButton() {
     const selection = this.state.selectedState
     if (!selection || selection.type !== SelectionType.Repository) {
@@ -4027,6 +4055,7 @@ export class App extends React.Component<IAppProps, IAppState> {
               isCollapsed={state.isRepositoryPanelCollapsed}
               dispatcher={this.props.dispatcher}
               onSelectionChanged={this.onSelectionChanged}
+              onContextMenu={this.onRepositoryPanelContextMenu}
             />
           }
           commitSummaryWidth={state.commitSummaryWidth}

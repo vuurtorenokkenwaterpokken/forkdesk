@@ -35,6 +35,18 @@
     }
   }
 
+  .repository-panel-filter {
+    flex-shrink: 0;
+    padding: var(--spacing-half);
+    border-bottom: var(--base-border);
+  }
+
+  .repository-panel-empty {
+    padding: var(--spacing);
+    color: var(--text-secondary-color);
+    text-align: center;
+  }
+
   .repository-panel-toggle {
     flex-shrink: 0;
     height: auto;
