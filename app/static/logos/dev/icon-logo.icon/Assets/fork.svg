@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 256 256">
+  <title>Forkdesk</title>
+  <path d="M128 196V128C128 96 80 112 80 76M128 128C128 96 176 112 176 76" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#FFFFFF">
+    <circle cx="80" cy="60" r="22"/>
+    <circle cx="176" cy="60" r="22"/>
+    <circle cx="128" cy="204" r="22"/>
+  </g>
+</svg>

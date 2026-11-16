@@ -191,11 +191,14 @@ async function packageApp() {
   }
 
   const iconPath = getIconDirectory()
+  // Only macOS uses Assets.car, and it can only be compiled on a Mac.
   const assetsCarPath = join(iconPath, 'Assets.car')
-  assert(
-    existsSync(assetsCarPath),
-    `Unable to find Assets.car at ${assetsCarPath}`
-  )
+  if (process.platform === 'darwin') {
+    assert(
+      existsSync(assetsCarPath),
+      `Unable to find Assets.car at ${assetsCarPath}, run script/compile-macos-icons.sh`
+    )
+  }
 
   return packager({
     name: getExecutableName(),
@@ -209,7 +212,7 @@ async function packageApp() {
       iconPath,
       process.platform === 'darwin' ? 'icon-logo-legacy.icns' : 'icon-logo'
     ),
-    extraResource: [assetsCarPath],
+    extraResource: process.platform === 'darwin' ? [assetsCarPath] : [],
     dir: outRoot,
     overwrite: true,
     tmpdir: false,
