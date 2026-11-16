@@ -12,19 +12,14 @@ import {
   getWindowsInstallerName,
   shouldMakeDelta,
   getUpdatesURL,
-  isPublishable,
   getBundleSizes,
   getDistRoot,
-  getDistArchitecture,
   getIconDirectory,
 } from './dist-info'
-import { isGitHubActions } from './build-platforms'
 import { existsSync, rmSync, writeFileSync } from 'fs'
-import { getVersion } from '../app/package-info'
 import { computeBundleHashSync } from '../app/src/lib/compute-bundle-hash'
-import { rename } from 'fs/promises'
 import { join } from 'path'
-import { assertNonNullable } from '../app/src/lib/fatal-error'
+import { ForkdeskRepository } from '../app/src/lib/forkdesk-repository'
 
 const distPath = getDistPath()
 const productName = getProductName()
@@ -91,8 +86,7 @@ function packageWindows() {
 
   // Squirrel downloads this while installing, for the entry in the list of
   // installed apps.
-  const iconUrl =
-    'https://raw.githubusercontent.com/vuurtorenokkenwaterpokken/forkdesk/development/app/static/logos/prod/icon-logo.ico'
+  const iconUrl = `https://raw.githubusercontent.com/${ForkdeskRepository}/development/app/static/logos/prod/icon-logo.ico`
 
   const nugetPkgName = getWindowsIdentifierName()
   const options: electronInstaller.Options = {
@@ -117,46 +111,21 @@ function packageWindows() {
     options.remoteReleases = url.toString()
   }
 
-  if (isGitHubActions() && isPublishable()) {
-    assertNonNullable(process.env.RUNNER_TEMP, 'Missing RUNNER_TEMP env var')
-
-    const acsPath = join(process.env.RUNNER_TEMP, 'acs')
-    const dlibPath = join(acsPath, 'bin', 'x64', 'Azure.CodeSigning.Dlib.dll')
-
-    assertExistsSync(dlibPath)
-
-    const metadataPath = join(acsPath, 'metadata.json')
-    const acsMetadata = {
-      Endpoint: 'https://wus3.codesigning.azure.net/',
-      CodeSigningAccountName: 'GitHubInc',
-      CertificateProfileName: 'GitHubInc',
-      CorrelationId: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
-    }
-    writeFileSync(metadataPath, JSON.stringify(acsMetadata))
-
-    options.signWithParams = `/v /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib "${dlibPath}" /dmdf "${metadataPath}"`
+  // Signing needs a code signing certificate, a .pfx file. Without one the
+  // installer works too, but Windows SmartScreen warns about it.
+  const certificateFile = process.env.FORKDESK_CERTIFICATE_FILE
+  if (certificateFile !== undefined && certificateFile.length > 0) {
+    assertExistsSync(certificateFile)
+    options.certificateFile = certificateFile
+    options.certificatePassword = process.env.FORKDESK_CERTIFICATE_PASSWORD
   }
 
+  // The packages keep the name Squirrel gives them, as its RELEASES file refers
+  // to them by that name when updating from the releases on GitHub.
   console.log('Packaging for Windows…')
   electronInstaller
     .createWindowsInstaller(options)
     .then(() => console.log(`Installers created in ${outputDir}`))
-    .then(async () => {
-      // electron-winstaller (more specifically Squirrel.Windows) doesn't let
-      // us control the name of the nuget packages but we want them to include
-      // the architecture similar to how the setup exe and msi do so we'll just
-      // have to rename them here after the fact.
-      const arch = getDistArchitecture()
-      const prefix = `${getWindowsIdentifierName()}-${getVersion()}`
-
-      for (const kind of shouldMakeDelta() ? ['full', 'delta'] : ['full']) {
-        const from = join(outputDir, `${prefix}-${kind}.nupkg`)
-        const to = join(outputDir, `${prefix}-${arch}-${kind}.nupkg`)
-
-        console.log(`Renaming ${from} to ${to}`)
-        await rename(from, to)
-      }
-    })
     .catch(e => {
       console.error(`Error packaging: ${e}`)
       process.exit(1)

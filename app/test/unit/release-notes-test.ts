@@ -3,9 +3,36 @@ import assert from 'node:assert'
 import {
   parseReleaseEntries,
   getReleaseSummary,
+  toReleaseMetadata,
 } from '../../src/lib/release-notes'
 
 describe('release-notes', () => {
+  describe('toReleaseMetadata', () => {
+    const release = {
+      tag_name: 'v3.6.11',
+      name: 'Forkdesk 3.6.11',
+      body: 'Some text\r\n\r\n- [New] A sidebar\r\n* [Fixed] Publishing\r\n[Improved] Icons',
+      published_at: '2026-11-16T20:00:00Z',
+      draft: false,
+      prerelease: false,
+    }
+
+    it('takes the notes out of the description of a release', () => {
+      assert.deepStrictEqual(toReleaseMetadata(release), {
+        name: 'Forkdesk 3.6.11',
+        version: '3.6.11',
+        pub_date: '2026-11-16T20:00:00Z',
+        notes: ['[New] A sidebar', '[Fixed] Publishing', '[Improved] Icons'],
+      })
+    })
+
+    it('skips drafts, prereleases and tags that are no version', () => {
+      assert.equal(toReleaseMetadata({ ...release, draft: true }), null)
+      assert.equal(toReleaseMetadata({ ...release, prerelease: true }), null)
+      assert.equal(toReleaseMetadata({ ...release, tag_name: 'latest' }), null)
+    })
+  })
+
   describe('parseReleaseEntries', () => {
     it('formats lowercased fixed message', () => {
       const values = ['[fixed] something else']

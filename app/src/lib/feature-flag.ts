@@ -139,8 +139,11 @@ export const enableCopilotAppHandoff = () =>
 /** Forkdesk never reports usage stats to GitHub. */
 export const enableStatsReporting = () => false
 
-/** Forkdesk does not use GitHub's update server. */
-export const enableAutoUpdates = () => false
+/**
+ * Installed Forkdesk updates itself from the releases of its own repository.
+ * Development builds aren't installed, so there's nothing to update.
+ */
+export const enableAutoUpdates = () => __RELEASE_CHANNEL__ === 'production'
 
 /** GitHub's `desktop_internal` endpoints answer Not Found for Forkdesk. */
 export const enableDesktopInternalAPI = () => false

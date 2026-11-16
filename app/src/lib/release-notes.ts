@@ -11,6 +11,7 @@ import { formatDate } from './format-date'
 import { offsetFromNow } from './offset-from'
 import { encodePathAsUrl } from './path'
 import { getUserAgent } from './http'
+import { ForkdeskReleasesAPIURL } from './forkdesk-repository'
 
 // expects a release note entry to contain a header and then some text
 // example:
@@ -89,28 +90,64 @@ export function getReleaseSummary(
   }
 }
 
+export interface IGitHubRelease {
+  readonly tag_name: string
+  readonly name: string | null
+  readonly body: string | null
+  readonly published_at: string | null
+  readonly draft: boolean
+  readonly prerelease: boolean
+}
+
+/**
+ * Get the release notes out of a GitHub release.
+ *
+ * These are the lines of its description in the format of GitHub Desktop's
+ * changelog, such as `[New] Something`, optionally as items of a list.
+ */
+export function toReleaseMetadata(
+  release: IGitHubRelease
+): ReleaseMetadata | null {
+  const version = semver.clean(release.tag_name)
+  if (release.draft || release.prerelease || version === null) {
+    return null
+  }
+
+  const notes = (release.body ?? '')
+    .split(/\r?\n/)
+    .map(line => line.replace(/^\s*[-*]\s+/, '').trim())
+    .filter(line => line.startsWith('['))
+
+  return {
+    name: release.name ?? release.tag_name,
+    version,
+    pub_date: release.published_at ?? '',
+    notes,
+  }
+}
+
+/** Get the release notes of Forkdesk's latest releases, newest first. */
 export async function getChangeLog(
   limit?: number
 ): Promise<ReadonlyArray<ReleaseMetadata>> {
-  const changelogURL = new URL(
-    'https://central.github.com/deployments/desktop/desktop/changelog.json'
-  )
+  const url = new URL(ForkdeskReleasesAPIURL)
+  url.searchParams.set('per_page', Math.min(limit ?? 10, 100).toString())
 
-  if (__RELEASE_CHANNEL__ === 'beta' || __RELEASE_CHANNEL__ === 'test') {
-    changelogURL.searchParams.set('env', __RELEASE_CHANNEL__)
-  }
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'user-agent': getUserAgent(),
+        accept: 'application/vnd.github+json',
+      },
+    })
+    if (!response.ok) {
+      return []
+    }
 
-  if (limit !== undefined) {
-    changelogURL.searchParams.set('limit', limit.toString())
-  }
-
-  const response = await fetch(changelogURL.toString(), {
-    headers: { 'user-agent': getUserAgent() },
-  })
-  if (response.ok) {
-    const releases: ReadonlyArray<ReleaseMetadata> = await response.json()
-    return releases
-  } else {
+    const releases: ReadonlyArray<IGitHubRelease> = await response.json()
+    return releases.map(toReleaseMetadata).filter(notEmpty)
+  } catch (e) {
+    log.warn('Unable to fetch the release notes', e)
     return []
   }
 }

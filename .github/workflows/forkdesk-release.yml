@@ -1,0 +1,73 @@
+name: Forkdesk release
+
+# Builds the Windows installer for a tag like v3.6.11 and publishes it as a
+# release, which installed copies of Forkdesk update themselves from.
+#
+# Needs the DESKTOP_OAUTH_CLIENT_ID and DESKTOP_OAUTH_CLIENT_SECRET secrets of
+# Forkdesk's OAuth app. FORKDESK_CERTIFICATE_BASE64 and
+# FORKDESK_CERTIFICATE_PASSWORD optionally sign it with a .pfx certificate.
+# The message of an annotated tag becomes the release notes.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Check that the tag matches the version
+        shell: bash
+        run: |
+          version=$(node -p "require('./app/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match version $version in app/package.json"
+            exit 1
+          fi
+
+      - uses: ./.github/actions/setup-ci-environment
+        with:
+          node-version: 24.22.1
+          arch: x64
+
+      - name: Prepare the signing certificate
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.FORKDESK_CERTIFICATE_BASE64 }}
+        run: |
+          if [ -n "$CERTIFICATE_BASE64" ]; then
+            echo "$CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/forkdesk.pfx"
+            echo "FORKDESK_CERTIFICATE_FILE=$RUNNER_TEMP/forkdesk.pfx" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build the installer
+        run: yarn dist
+        env:
+          DESKTOP_OAUTH_CLIENT_ID: ${{ secrets.DESKTOP_OAUTH_CLIENT_ID }}
+          DESKTOP_OAUTH_CLIENT_SECRET:
+            ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET }}
+          FORKDESK_CERTIFICATE_PASSWORD:
+            ${{ secrets.FORKDESK_CERTIFICATE_PASSWORD }}
+
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Forkdesk ${GITHUB_REF_NAME#v}" \
+            --notes-from-tag \
+            dist/ForkdeskSetup-x64.exe \
+            dist/ForkdeskSetup-x64.msi \
+            dist/RELEASES \
+            dist/Forkdesk-*-full.nupkg

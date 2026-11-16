@@ -2,6 +2,7 @@ import * as Path from 'path'
 import * as Fs from 'fs'
 
 import { getProductName, getVersion } from '../app/package-info'
+import { ForkdeskUpdatesURL } from '../app/src/lib/forkdesk-repository'
 import { join } from 'path'
 
 const productName = getProductName()
@@ -136,17 +137,12 @@ export function getDistArchitecture(): 'arm64' | 'x64' {
 }
 
 export function getUpdatesURL() {
-  // It is also possible to use a `x64/` path, but for now we'll leave the
-  // original URL without architecture in it (which will still work for
-  // compatibility reasons) in case anything goes wrong until we have everything
-  // sorted out.
-  const architecturePath = getDistArchitecture() === 'arm64' ? 'arm64/' : ''
-  return `https://central.github.com/api/deployments/desktop/desktop/${architecturePath}latest?version=${version}&env=${getChannel()}`
+  return ForkdeskUpdatesURL
 }
 
 export function shouldMakeDelta() {
-  // Deltas are made against the releases on the update server, which are
-  // GitHub Desktop's. Forkdesk doesn't update itself.
+  // Deltas save downloads, but need the previous release to be at hand while
+  // packaging. Forkdesk's releases only have full packages.
   return false
 }
 
