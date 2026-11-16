@@ -145,9 +145,9 @@ export function getUpdatesURL() {
 }
 
 export function shouldMakeDelta() {
-  // Only production and beta channels include deltas. Test releases aren't
-  // necessarily sequential so deltas wouldn't make sense.
-  return ['production', 'beta'].includes(getChannel())
+  // Deltas are made against the releases on the update server, which are
+  // GitHub Desktop's. Forkdesk doesn't update itself.
+  return false
 }
 
 /**

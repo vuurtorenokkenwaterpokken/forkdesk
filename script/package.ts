@@ -89,7 +89,10 @@ function packageWindows() {
     process.exit(1)
   }
 
-  const iconUrl = 'https://desktop.githubusercontent.com/app-icon.ico'
+  // Squirrel downloads this while installing, for the entry in the list of
+  // installed apps.
+  const iconUrl =
+    'https://raw.githubusercontent.com/vuurtorenokkenwaterpokken/forkdesk/development/app/static/logos/prod/icon-logo.ico'
 
   const nugetPkgName = getWindowsIdentifierName()
   const options: electronInstaller.Options = {
