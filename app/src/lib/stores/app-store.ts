@@ -424,7 +424,7 @@ import { ValidNotificationPullRequestReview } from '../valid-notification-pull-r
 import { determineMergeability } from '../git/merge-tree'
 import { PopupManager } from '../popup-manager'
 import { resizableComponentClass } from '../../ui/resizable'
-import { compare } from '../compare'
+import { caseInsensitiveEquals, compare } from '../compare'
 import { parseRepoRules, useRepoRulesLogic } from '../helpers/repo-rules'
 import { RepoRulesInfo } from '../../models/repo-rules'
 import {
@@ -5941,11 +5941,39 @@ export class AppStore extends TypedBaseStore<IAppState> {
       private_
     )
 
+    // Git would otherwise push with the account that owns the repository, which
+    // for an organization isn't necessarily the one it was published with.
+    linkRepositoryToAccount(
+      {
+        endpoint: account.endpoint,
+        owner: { login: apiRepository.owner.login },
+        name: apiRepository.name,
+      },
+      account.login
+    )
+
+    // Repositories of an account with a group connect through its alias.
+    const group = isDotComAccount(account)
+      ? this.repositoryGroups.find(
+          g =>
+            g.accountLogin !== null &&
+            caseInsensitiveEquals(g.accountLogin, account.login)
+        )
+      : undefined
+    const remoteUrl =
+      (group !== undefined
+        ? getRemoteUrlForAlias(apiRepository.clone_url, group.sshHostAlias)
+        : null) ?? apiRepository.clone_url
+
     const gitStore = this.gitStoreCache.get(repository)
     await gitStore.performFailableOperation(() =>
-      addRemote(repository, 'origin', apiRepository.clone_url)
+      addRemote(repository, 'origin', remoteUrl)
     )
     await gitStore.loadRemotes()
+
+    if (group !== undefined) {
+      await this.refreshRepositorySSHAliases()
+    }
 
     // skip pushing if the current branch is a detached HEAD or the repository
     // is unborn
