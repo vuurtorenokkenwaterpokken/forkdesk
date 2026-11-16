@@ -18,7 +18,10 @@ Forkdesk is not made, supported or endorsed by GitHub.
   email together. Cloning into a group uses its alias.
 - **Adding an account:** a wizard creates an SSH key, adds it to GitHub, writes
   the `Host` entry and checks that it works.
-- **Repository sidebar:** a collapsible sidebar lists all repositories by group.
+- **Repository sidebar:** a collapsible sidebar lists all repositories by group,
+  with a filter and the usual context menu.
+- **Publishing with any account:** choose the account to publish a repository
+  with.
 - **Clear SSH errors:** the actual cause, instead of "Authentication failed".
 
 Everything else works as in GitHub Desktop.
@@ -64,7 +67,8 @@ There are no published downloads. You build Forkdesk yourself.
    ```
 
    This makes `dist\ForkdeskSetup-x64.exe` and `dist\ForkdeskSetup-x64.msi`.
-   The installer isn't signed, so Windows SmartScreen warns the first time.
+   Without a certificate the installer isn't signed, so Windows SmartScreen
+   warns the first time.
 
 To work on Forkdesk itself, run the development version instead:
 
@@ -76,11 +80,30 @@ yarn start
 The development version is called Forkdesk-dev and keeps its own settings,
 sign-ins and repositories, apart from the installed Forkdesk.
 
-### Updating
+### Releases and updates
 
-Forkdesk doesn't update itself. To update the installed version, raise
-`version` in `app/package.json`, run `yarn dist` again and run the new
-installer.
+Installed Forkdesk updates itself from the latest release of this repository.
+To publish a release:
+
+1. Add the `DESKTOP_OAUTH_CLIENT_ID` and `DESKTOP_OAUTH_CLIENT_SECRET` secrets
+   of the OAuth app to the repository, under Settings > Secrets and variables >
+   Actions, and enable Actions for the repository.
+2. Raise `version` in `app/package.json` and commit it.
+3. Push a tag for that version. The message of an annotated tag becomes the
+   release notes, with lines like `[New] Something` or `[Fixed] Something`:
+
+   ```
+   git tag -a v3.6.11 -m "[New] Something"
+   git push origin v3.6.11
+   ```
+
+The [release workflow](.github/workflows/forkdesk-release.yml) then builds the
+installer and publishes it as a release.
+
+To sign the installer, add a code signing certificate as the
+`FORKDESK_CERTIFICATE_BASE64` secret (a base64 encoded `.pfx`) and its
+password as `FORKDESK_CERTIFICATE_PASSWORD`. Locally, `yarn dist` signs with
+the `.pfx` in the `FORKDESK_CERTIFICATE_FILE` environment variable.
 
 ### Icons
 
@@ -99,8 +122,8 @@ What's done, the known limitations and ideas for later are in the
 Forkdesk follows GitHub Desktop's `development` branch, which is set up as the
 `upstream` remote. Changes from GitHub Desktop can be merged from there.
 Forkdesk uses its own name, logo, protocols and OAuth app, so it runs next to
-GitHub Desktop without getting in its way. It doesn't use GitHub's update
-server and doesn't send usage statistics.
+GitHub Desktop without getting in its way. It updates from its own releases
+instead of GitHub's update server, and doesn't send usage statistics.
 
 Problems with Forkdesk shouldn't be reported to GitHub Desktop. The
 [documentation of GitHub Desktop](https://docs.github.com/en/desktop) does

@@ -71,6 +71,13 @@ and checks the result with `ssh -T`. Optionally, it creates a group as well.
 - GitHub's internal Desktop endpoints aren't called, as they don't answer
   Forkdesk.
 - `yarn dist` builds a Windows installer.
+- The repository sidebar has a filter and the same context menu as the
+  repository list.
+- Publishing a repository lets you choose the account. The repository is linked
+  to that account, and connects through the alias of its group if it has one.
+- Installed Forkdesk updates itself from the releases of its own repository,
+  which a GitHub Actions workflow builds for every version tag. The installer
+  is signed when a certificate is provided.
 - `yarn icons` makes every app icon from `logo.svg`: the Windows `.ico`
   files, the macOS `.icns` files and Icon Composer documents, and the PNGs
   for the app and Linux.
@@ -80,23 +87,23 @@ and checks the result with `ssh -T`. Optionally, it creates a group as well.
 - Pushing through an alias for each of the accounts.
 - Creating a group and committing with its identity.
 - Installing with the installer on a machine without a development setup.
+- Publishing a repository with each of the accounts.
+- The release workflow and an update from one release to the next.
 
 ## Known limitations
 
 - Groups can be created and removed, but not edited.
 - A repository can't be linked to an account by hand. The account follows
   from its alias or owner.
-- Publishing a new repository uses the first signed-in account.
 - The wizard doesn't offer to protect the new key with a passphrase.
 - Submodules that use an alias aren't linked to an account.
-- The repository sidebar has no filter and no context menu. "Move to group"
-  is only in the repository list in the toolbar.
 - The toolbar's "Current repository" button no longer lines up with the
   columns below it.
 - Without GitHub's internal endpoints, there are no live notifications for
   failed checks or reviews, and no features that GitHub turns on per account.
-- The installer isn't signed, so Windows SmartScreen warns the first time.
-  Forkdesk doesn't update itself.
+- Without a code signing certificate, the installer isn't signed and Windows
+  SmartScreen warns the first time. Updates only download full packages of
+  about 250 MB, not the differences.
 - Forkdesk is only built and tested on Windows. A macOS build also needs
   `Assets.car`, which `script/compile-macos-icons.sh` compiles from the Icon
   Composer documents. That script needs Xcode 26 and hasn't been run yet.
@@ -106,8 +113,6 @@ and checks the result with `ssh -T`. Optionally, it creates a group as well.
 These are possibilities, not commitments.
 
 - Edit a group, and choose the account of a repository by hand.
-- Choose the account to publish a repository with.
-- A filter and the context menu of the repository list in the sidebar.
 - A passphrase option in the wizard, with `ssh-agent` support.
-- Release builds through GitHub Actions, with an update feed of its own.
+- Updates that only download the differences.
 - Regularly merging GitHub Desktop's changes from `upstream`.
