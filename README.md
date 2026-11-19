@@ -80,6 +80,13 @@ yarn start
 The development version is called Forkdesk-dev and keeps its own settings,
 sign-ins and repositories, apart from the installed Forkdesk.
 
+### Checks
+
+The [CI workflow](.github/workflows/forkdesk-ci.yml) lints, builds and tests
+Forkdesk on Windows for every push to `development` and every pull request.
+GitHub Desktop's own workflows for macOS, its releases and the triage of its
+issues aren't part of Forkdesk.
+
 ### Releases and updates
 
 Installed Forkdesk updates itself from the latest release of this repository.

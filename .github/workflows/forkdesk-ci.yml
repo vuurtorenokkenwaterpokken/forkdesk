@@ -1,0 +1,60 @@
+name: Forkdesk CI
+
+# GitHub Desktop's own CI builds for macOS on runners only GitHub has, and
+# installs the app under GitHub Desktop's name. Forkdesk is built and tested
+# on Windows only.
+
+on:
+  push:
+    branches:
+      - development
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24.22.1
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+      - run: yarn
+      - run: yarn lint
+      - name: Ensure a clean working directory
+        run: git diff --name-status --exit-code
+
+  test:
+    name: Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-ci-environment
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          arch: x64
+      - name: Build production app
+        run: yarn build:prod
+      - name: Prepare testing environment
+        run: yarn test:setup
+      - name: Run unit tests
+        run: yarn test:unit
+      - name: Run script tests
+        run: yarn test:script
