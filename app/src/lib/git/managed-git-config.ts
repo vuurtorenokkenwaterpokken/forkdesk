@@ -1,6 +1,7 @@
 import * as Os from 'os'
 import * as Path from 'path'
 import { copyFile, readFile, rm, writeFile } from 'fs/promises'
+import { realpathSync } from 'fs'
 import { IRepositoryGroup } from '../../models/repository-group'
 
 const BlockStart = '# >>> Forkdesk managed'
@@ -16,6 +17,22 @@ const escapeValue = (value: string) =>
     .replace(/"/g, '\\"')
 
 const toSlashes = (path: string) => path.replace(/\\/g, '/')
+
+/**
+ * Get a folder the way Git sees it: without symlinks, junctions or short 8.3
+ * names, as far as it exists. Git compares `gitdir` against that path.
+ */
+function getRealFolder(folder: string): string {
+  try {
+    // eslint-disable-next-line no-sync
+    return realpathSync.native(folder)
+  } catch {
+    const parent = Path.dirname(folder)
+    return parent === folder
+      ? folder
+      : Path.join(getRealFolder(parent), Path.basename(folder))
+  }
+}
 
 /** Split a Git config file in what's inside and outside of our block. */
 function splitManagedBlock(contents: string) {
@@ -82,7 +99,10 @@ function getManagedLines(
     ]
 
     if (group.rootPath !== null) {
-      const folder = toSlashes(group.rootPath).replace(/\/+$/, '')
+      const folder = toSlashes(getRealFolder(group.rootPath)).replace(
+        /\/+$/,
+        ''
+      )
       // The trailing slash makes this match everything below the folder.
       conditions.push(
         `${__WIN32__ ? 'gitdir/i' : 'gitdir'}:${escapeValue(folder)}/`
